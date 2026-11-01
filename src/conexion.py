@@ -27,14 +27,14 @@ INTENTOS = 3
 ESPERA_SEGUNDOS = 20  # la BD serverless de Azure se pausa y tarda en despertar
 
 
-def _cadena_conexion(base_datos):
-    """Arma la cadena de conexión según sea servidor local o Azure."""
+def cadena_conexion(base_datos, usuario=None, clave=None):
+    """Arma la cadena de conexión según sea servidor local o Azure (por defecto, usuario del .env)."""
     cadena = (
         f"DRIVER={{{DB_DRIVER}}};"
         f"SERVER={DB_SERVER};"
         f"DATABASE={base_datos};"
-        f"UID={DB_USER};"
-        f"PWD={DB_PASSWORD};"
+        f"UID={usuario or DB_USER};"
+        f"PWD={clave or DB_PASSWORD};"
     )
     if DB_SERVER.split(",")[0] in ("localhost", "127.0.0.1", "."):
         cadena += "TrustServerCertificate=yes;"
@@ -47,7 +47,7 @@ def _conectar(base_datos, etiqueta):
     """Intenta conectarse hasta 3 veces; devuelve la conexión o None."""
     for intento in range(1, INTENTOS + 1):
         try:
-            conn = pyodbc.connect(_cadena_conexion(base_datos))
+            conn = pyodbc.connect(cadena_conexion(base_datos))
             print(f"✓ Conexión a {etiqueta} exitosa ({base_datos})")
             return conn
         except pyodbc.Error as e:
