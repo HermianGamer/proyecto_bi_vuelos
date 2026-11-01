@@ -3,11 +3,11 @@
 Cada fase termina con un commit. Entre paréntesis, el criterio de la rúbrica que alimenta.
 
 ## Fase 0 — Preparación (1 día)
-- [ ] Crear repo nuevo en GitHub, agregar a los 4 integrantes y al profesor (`javierwam`).
-- [ ] Copiar el contenido de esta carpeta al repo y hacer el primer commit.
-- [ ] Crear entorno: `python -m venv .venv` + `pip install -r requirements.txt`.
-- [ ] Instalar **ODBC Driver 18 for SQL Server** en la laptop.
-- [ ] Copiar `.env.example` → `.env` apuntando al SQL Server local.
+- [x] Crear repo nuevo en GitHub, agregar a los 4 integrantes y al profesor (`javierwam`).
+- [x] Copiar el contenido de esta carpeta al repo y hacer el primer commit.
+- [x] Crear entorno: `python -m venv .venv` + `pip install -r requirements.txt`.
+- [x] Instalar **ODBC Driver 18 for SQL Server** en la laptop.
+- [x] Copiar `.env.example` → `.env` apuntando al SQL Server local.
 
 ## Fase 1 — Datos (1–2 días)
 - [ ] `etl_01_descargar.py`: últimos 12 meses, solo JetBlue.

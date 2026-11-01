@@ -28,7 +28,10 @@ def a_numero(valor):
         valor = valor.strip()
         if valor == "":
             return None
-    numero = float(valor)
+    try:
+        numero = float(valor)
+    except TypeError:  # p. ej. pd.NA de pandas
+        return None
     return None if math.isnan(numero) else numero
 
 
@@ -89,9 +92,9 @@ def calcular_causa_principal(estado, minutos):
 
 def calcular_causa_cancelacion(codigo):
     """Código de cancelación BTS (A–D) → sk de DimCausaCancelacion; vacío o N → 0."""
-    if codigo is None or (isinstance(codigo, float) and math.isnan(codigo)):
+    if not isinstance(codigo, str):  # None, NaN o pd.NA
         return 0
-    codigo = str(codigo).strip().upper()
+    codigo = codigo.strip().upper()
     if codigo == "":
         return 0
     if codigo not in SK_CANCELACION:

@@ -52,6 +52,9 @@ def _conectar(base_datos, etiqueta):
             return conn
         except pyodbc.Error as e:
             print(f"Error de conexión a {etiqueta} (intento {intento}/{INTENTOS}): {e}")
+            if "Can't open lib" in str(e) or "IM002" in str(e):
+                print(f"  Falta instalar el driver '{DB_DRIVER}' (ver README). No se reintenta.")
+                return None
             if intento < INTENTOS:
                 print(f"  Reintentando en {ESPERA_SEGUNDOS} s (la BD puede estar despertando)...")
                 time.sleep(ESPERA_SEGUNDOS)
@@ -66,6 +69,22 @@ def get_connection_origen():
 def get_connection_destino():
     """Conexión a la BD del data mart (VuelosDW)."""
     return _conectar(DB_DW, "destino")
+
+
+def a_filas(df):
+    """Convierte un DataFrame en lista de filas con tipos de Python (NaN → None)."""
+    return df.astype(object).where(df.notna(), None).values.tolist()
+
+
+def insertar_por_lotes(conn, sql, filas, tamano_lote=5000):
+    """Inserta filas con fast_executemany en lotes de 5,000."""
+    cursor = conn.cursor()
+    cursor.fast_executemany = True
+    for inicio in range(0, len(filas), tamano_lote):
+        cursor.executemany(sql, filas[inicio:inicio + tamano_lote])
+        conn.commit()
+        print(f"\r  {min(inicio + tamano_lote, len(filas)):,} / {len(filas):,} filas", end="")
+    print()
 
 
 if __name__ == "__main__":
