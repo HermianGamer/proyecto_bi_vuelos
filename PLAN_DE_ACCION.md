@@ -45,34 +45,4 @@ Cada fase termina con un commit. Entre paréntesis, el criterio de la rúbrica q
 
 ## Cómo usar Claude Code
 
-1. Abre la terminal en la raíz del repo y ejecuta `claude`.
-2. Primer mensaje (pégalo tal cual):
-
-```
-Lee CLAUDE.md, PLAN_DE_ACCION.md y todo docs/. No escribas código todavía.
-Resúmeme en 10 líneas qué entendiste del proyecto y dime si hay algo
-contradictorio o ambiguo en las especificaciones.
-```
-
-3. Luego, una fase por sesión, por ejemplo:
-
-```
-Fase 1: implementa src/conexion.py y src/etl_01_descargar.py según docs/02_etl.md.
-Usa plan mode primero y muéstrame el plan antes de escribir.
-```
-
-```
-Fase 3: implementa src/reglas.py con tests en tests/test_reglas.py, luego
-etl_02 y etl_03. Imita el estilo de docs/ejemplos_profesor/poblar_datamart_Veterinaria__1_.py
-pero con fast_executemany. Pruébalo contra mi SQL Server local.
-```
-
-```
-Fase 5: implementa app/db.py y la página Resumen según docs/03_dashboard.md.
-Cuando funcione, sigue con una página a la vez.
-```
-
-Consejos:
-- Pídele que **corra** lo que escribe y te muestre la salida.
-- Al final de cada fase: `"Resume los cambios y propón el mensaje de commit"`.
-- Si propone cambiar el modelo dimensional, decide tú: el modelo está en `docs/01_modelo_dimensional.md`.
+Los prompts de cada fase están en [`PROMPTS.md`](PROMPTS.md) (en inglés, para ahorrar tokens).
