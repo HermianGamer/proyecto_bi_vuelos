@@ -6,3 +6,5 @@ requests>=2.32
 streamlit>=1.38
 plotly>=5.22
 pytest>=8.0
+ipykernel>=6.29
+nbconvert>=7.16

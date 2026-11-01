@@ -44,7 +44,13 @@ Conceptos aplicados en este modelo:
 
 **JetBlue Airways** es una aerolínea estadounidense con base en Nueva York (JFK). Sus principales operaciones están en el noreste de EE. UU., Florida y el Caribe.
 
-**Problemática.** JetBlue está entre las aerolíneas menos puntuales de EE. UU. Según el *Air Travel Consumer Report* del DOT, en el primer semestre de 2026 llegó a tiempo en el 71 % de sus vuelos (8.º de 9 aerolíneas), y en julio de 2026 bajó a 55,7 % (último lugar) con 9,8 % de vuelos cancelados *(verificar cifras con el ATCR oficial)*. Cada demora genera costos de tripulación, combustible, compensaciones y pérdida de clientes.
+**Problemática.** JetBlue está entre las aerolíneas menos puntuales de EE. UU. Según el *Air Travel Consumer Report* del DOT, en el primer semestre de 2026 llegó a tiempo en el 71 % de sus vuelos (8.º de 9 aerolíneas), y en julio de 2026 bajó a 55,7 % (último lugar) con 9,8 % de vuelos cancelados *(verificar el ranking con el ATCR oficial; los porcentajes coinciden con nuestros datos)*. Cada demora genera costos de tripulación, combustible, compensaciones y pérdida de clientes.
+
+**Situación según los datos (BTS, sep-2025 a ago-2026, 240.615 vuelos de JetBlue).** Usamos la misma definición del *Air Travel Consumer Report* del DOT: un vuelo es **puntual** si llega con menos de 15 minutos de retraso, y la puntualidad se calcula sobre **todos los vuelos programados** (los cancelados y desviados cuentan como no puntuales). Con esta definición, nuestros datos reproducen las cifras del DOT: **71,0 %** de puntualidad en el primer semestre de 2026 y **55,7 %** en julio de 2026, con **9,8 %** de cancelaciones.
+
+En todo el periodo JetBlue fue puntual en el **68,5 %** de sus vuelos y canceló el **3,6 %** (8.577 vuelos). El desempeño cae en invierno y en verano: en diciembre de 2025 y en enero y febrero de 2026 la puntualidad bajó a **62–64 %**, con cancelaciones de hasta **7,7 %** (febrero), y el verano de 2026 fue el peor periodo: julio (**55,7 %** puntual, **9,8 %** cancelado) y agosto (**59,8 %** puntual, **6,2 %** cancelado). El mejor mes fue mayo de 2026 (81,0 % puntual, 0,2 % cancelado).
+
+Más de uno de cada cuatro vuelos operados (**29 %**) llega con 15 minutos o más de demora, y el 4,8 % de todos los vuelos llega con más de dos horas. Por minutos de demora, la causa principal es el **avión anterior retrasado (45 %)**: una demora temprana se arrastra al resto del día. Le siguen la **propia aerolínea (27 %)** y el **control de tráfico aéreo (25 %)**. El clima extremo explica solo el 2 % de los minutos de demora, pero el **42 % de las cancelaciones**. En total, más del 70 % de los minutos de demora dependen total o parcialmente de JetBlue (aerolínea + avión anterior), lo que deja un amplio margen de mejora operativa.
 
 La empresa tiene los datos de cada vuelo, pero no una vista integrada que responda:
 
@@ -140,7 +146,7 @@ Especificación completa (tipos, reglas y DDL): [`docs/01_modelo_dimensional.md`
 ### KPI
 | KPI | Cálculo |
 |---|---|
-| % Puntualidad | vuelos a tiempo ÷ vuelos no cancelados |
+| % Puntualidad | vuelos a tiempo ÷ vuelos programados (cancelados y desviados cuentan como no puntuales; definición del *Air Travel Consumer Report* del DOT) |
 | % Cancelación | vuelos cancelados ÷ vuelos programados |
 | Demora promedio | promedio de minutos de llegada de los vuelos demorados |
 | Participación de causa | minutos de la causa ÷ minutos de las 5 causas |

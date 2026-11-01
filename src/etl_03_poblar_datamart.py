@@ -312,7 +312,7 @@ def validar(conn, filas_staging, duplicados):
     print("\n% por mes (comparar con el Air Travel Consumer Report del DOT):")
     df_kpi = pd.read_sql("""
         SELECT d.anio, d.mes, COUNT(*) AS vuelos,
-               SUM(f.es_puntual) * 100.0 / NULLIF(COUNT(*) - SUM(f.es_cancelado), 0) AS pct_puntualidad,
+               SUM(f.es_puntual) * 100.0 / COUNT(*) AS pct_puntualidad,  -- definición DOT (ATCR)
                SUM(f.es_cancelado) * 100.0 / COUNT(*) AS pct_cancelacion
         FROM FactVuelos f JOIN DimFecha d ON f.sk_fecha = d.sk_fecha
         GROUP BY d.anio, d.mes ORDER BY d.anio, d.mes

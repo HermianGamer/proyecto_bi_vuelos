@@ -6,6 +6,7 @@ Descarga los últimos 12 meses publicados, se queda solo con JetBlue (B6)
 y guarda un CSV por mes en data/b6_YYYY_MM.csv.
 """
 
+import time
 import zipfile
 from datetime import date
 from pathlib import Path
@@ -20,6 +21,7 @@ URL_BASE = (
 URL_MANUAL = "https://www.transtats.bts.gov/DL_SelectFields.aspx?gnoyr_VQ=FGJ"
 AEROLINEA = "B6"
 MESES_A_BUSCAR = 6  # cuántos meses hacia atrás probar para hallar el último publicado
+INTENTOS_DESCARGA = 3  # BTS a veces corta la conexión a mitad de la descarga
 
 CARPETA_DATA = Path(__file__).resolve().parent.parent / "data"
 CARPETA_RAW = CARPETA_DATA / "raw"
@@ -107,7 +109,15 @@ def procesar_mes(anio, mes):
         print(f"- {anio}-{mes:02d}: ya existe, se omite")
         return
     print(f"- {anio}-{mes:02d}:")
-    ruta_zip = descargar_zip(anio, mes)
+    for intento in range(1, INTENTOS_DESCARGA + 1):
+        try:
+            ruta_zip = descargar_zip(anio, mes)
+            break
+        except requests.RequestException as e:
+            print(f"\n  Error en la descarga (intento {intento}/{INTENTOS_DESCARGA}): {e}")
+            if intento == INTENTOS_DESCARGA:
+                raise
+            time.sleep(10)
     df = filtrar_jetblue(leer_archivo(ruta_zip))
     df.to_csv(destino, index=False)
     ruta_zip.unlink()

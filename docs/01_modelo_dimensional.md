@@ -146,7 +146,7 @@ Fields: `sk_rango_demora TINYINT PK`, `rango NVARCHAR(30)`, `min_desde INT NULL`
 ## KPIs (computed in queries, NOT stored)
 | KPI | SQL |
 |---|---|
-| % Puntualidad | `SUM(es_puntual)*1.0 / NULLIF(COUNT(*) - SUM(es_cancelado), 0)` (operated flights) |
+| % Puntualidad | `SUM(es_puntual)*1.0 / COUNT(*)` (all scheduled flights; cancelled and diverted count as not on time — DOT Air Travel Consumer Report definition) |
 | % Cancelación | `SUM(es_cancelado)*1.0 / COUNT(*)` |
 | Avg delay of delayed flights | `AVG(demora_llegada_min)` where `sk_estado = 2` |
 | Cause share | `SUM(min_causa_X)*1.0 / NULLIF(SUM(all 5 causes), 0)` where `sk_estado = 2` |
