@@ -23,6 +23,12 @@ DB_PASSWORD = os.getenv("DB_PASSWORD")
 DB_ORIGEN = os.getenv("DB_ORIGEN", "VuelosOrigen")
 DB_DW = os.getenv("DB_DW", "VuelosDW")
 
+# Usuarios de la app (sql/03_usuarios_app.sql): lector solo lee, editor también escribe
+DB_LECTOR_USER = os.getenv("DB_LECTOR_USER", "app_lector")
+DB_LECTOR_PASSWORD = os.getenv("DB_LECTOR_PASSWORD")
+DB_EDITOR_USER = os.getenv("DB_EDITOR_USER", "app_editor")
+DB_EDITOR_PASSWORD = os.getenv("DB_EDITOR_PASSWORD")
+
 INTENTOS = 3
 ESPERA_SEGUNDOS = 20  # la BD serverless de Azure se pausa y tarda en despertar
 

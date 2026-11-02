@@ -43,7 +43,7 @@ python src/etl_03_poblar_datamart.py     # → Azure VuelosDW
 ```
 
 ## 5. Usuarios de la aplicación
-Conectado a **VuelosDW** como admin, ejecutar `sql/03_usuarios_app.sql`:
+Conectado a **VuelosDW** como admin, ejecutar la **versión Azure** (usuarios contenidos) que está comentada al final de `sql/03_usuarios_app.sql`. En el SQL Server local se usa en cambio `python src/crear_usuarios_app.py`, que crea login + usuario con las contraseñas del `.env`:
 ```sql
 CREATE USER app_lector WITH PASSWORD = '<contraseña-fuerte-1>';
 ALTER ROLE db_datareader ADD MEMBER app_lector;

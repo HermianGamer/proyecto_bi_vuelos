@@ -13,10 +13,11 @@ from db import filtros_sidebar
 st.set_page_config(page_title="JetBlue — Puntualidad", page_icon="✈️", layout="wide")
 
 paginas = [
-    st.Page("pages/0_Resumen.py", title="Resumen", icon="📊", default=True),
-    st.Page("pages/1_Causas.py", title="Causas de demora", icon="🔍"),
-    st.Page("pages/2_Aeropuertos_y_rutas.py", title="Aeropuertos y rutas", icon="🗺️"),
-    st.Page("pages/3_Horario.py", title="Horario", icon="🕒"),
+    st.Page("paginas/0_Resumen.py", title="Resumen", icon="📊", default=True),
+    st.Page("paginas/1_Causas.py", title="Causas de demora", icon="🔍"),
+    st.Page("paginas/2_Aeropuertos_y_rutas.py", title="Aeropuertos y rutas", icon="🗺️"),
+    st.Page("paginas/3_Horario.py", title="Horario", icon="🕒"),
+    st.Page("paginas/4_Consultas_SQL.py", title="Consultas SQL", icon="🧮"),
 ]
 navegacion = st.navigation(paginas)
 filtros_sidebar()

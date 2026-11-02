@@ -17,7 +17,11 @@ import pyodbc
 import streamlit as st
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
-from conexion import DB_DW, cadena_conexion  # noqa: E402
+from conexion import (  # noqa: E402
+    DB_DW, DB_EDITOR_PASSWORD, DB_EDITOR_USER, DB_LECTOR_PASSWORD, DB_LECTOR_USER, cadena_conexion,
+)
+
+TIMEOUT_CONSULTA = 30  # segundos máximos por consulta de lectura
 
 # Colores fijos por estado del vuelo (iguales en todas las páginas)
 COLORES_ESTADO = {
@@ -62,38 +66,70 @@ MINUTOS_POR_CAUSA = """
     JOIN DimCausaDemora c ON c.codigo = m.codigo
 """
 
-_bloqueo = threading.Lock()  # una sola conexión compartida: una consulta a la vez
+_bloqueo = threading.Lock()  # conexiones compartidas: una consulta a la vez
 
 
 # ------------------------------------------------------------------ Conexión ---
 @st.cache_resource
-def get_conexion():
-    """Conexión a VuelosDW (se reutiliza entre recargas de la app)."""
-    return pyodbc.connect(cadena_conexion(DB_DW))
+def get_conexion_lector():
+    """Conexión de solo lectura (app_lector) para las páginas y la consola SQL."""
+    conn = pyodbc.connect(cadena_conexion(DB_DW, DB_LECTOR_USER, DB_LECTOR_PASSWORD))
+    conn.timeout = TIMEOUT_CONSULTA
+    return conn
 
 
-def _ejecutar_cursor(sql, params):
+@st.cache_resource
+def get_conexion_editor():
+    """Conexión con permisos de escritura (app_editor), solo para Gestión de vuelos."""
+    return pyodbc.connect(cadena_conexion(DB_DW, DB_EDITOR_USER, DB_EDITOR_PASSWORD))
+
+
+def es_error_de_conexion(error):
+    """True si el error es de conexión (vale la pena reconectar), no de la consulta en sí."""
+    return error.args and str(error.args[0]) in ("08S01", "08001", "08003", "08004", "HY000")
+
+
+def _ejecutar_cursor(get_conexion, sql, params):
     """Ejecuta una consulta; si la conexión se cayó (p. ej. Azure en pausa), reconecta una vez."""
     for intento in range(2):
         try:
             cursor = get_conexion().cursor()
             cursor.execute(sql, params)
             return cursor
-        except pyodbc.Error:
-            get_conexion.clear()
-            if intento == 1:
+        except pyodbc.Error as e:
+            if intento == 1 or not es_error_de_conexion(e):
                 raise
+            get_conexion.clear()
 
 
 @st.cache_data(ttl=300, show_spinner="Consultando base de datos...")
 def consultar(sql, params=()):
-    """Ejecuta un SELECT parametrizado y devuelve un DataFrame."""
+    """Ejecuta un SELECT parametrizado con app_lector y devuelve un DataFrame."""
     with _bloqueo:
-        cursor = _ejecutar_cursor(sql, tuple(params))
+        cursor = _ejecutar_cursor(get_conexion_lector, sql, tuple(params))
         columnas = [c[0] for c in cursor.description]
         filas = [tuple(f) for f in cursor.fetchall()]
+    return _a_dataframe(filas, columnas)
+
+
+def consultar_libre(sql, max_filas):
+    """Ejecuta una consulta escrita por el usuario (consola SQL) con app_lector, sin caché.
+
+    Devuelve (DataFrame con hasta max_filas filas, True si había más filas).
+    """
+    with _bloqueo:
+        cursor = _ejecutar_cursor(get_conexion_lector, sql, ())
+        if cursor.description is None:  # la sentencia no devolvió filas
+            return pd.DataFrame(), False
+        columnas = [c[0] or f"columna_{i + 1}" for i, c in enumerate(cursor.description)]
+        filas = [tuple(f) for f in cursor.fetchmany(max_filas + 1)]
+        cursor.cancel()  # no leer el resto de filas
+    return _a_dataframe(filas[:max_filas], columnas), len(filas) > max_filas
+
+
+def _a_dataframe(filas, columnas):
+    """Convierte filas de pyodbc en DataFrame (DECIMAL de SQL Server → float)."""
     df = pd.DataFrame.from_records(filas, columns=columnas)
-    # SQL Server devuelve DECIMAL como Decimal de Python; plotly y pandas trabajan mejor con float
     for col in df.columns:
         if df[col].map(lambda v: isinstance(v, Decimal)).any():
             df[col] = df[col].astype(float)
@@ -101,9 +137,9 @@ def consultar(sql, params=()):
 
 
 def ejecutar(sql, params=()):
-    """Ejecuta un INSERT/UPDATE/DELETE parametrizado y limpia la caché."""
+    """Ejecuta un INSERT/UPDATE/DELETE parametrizado con app_editor y limpia la caché."""
     with _bloqueo:
-        cursor = _ejecutar_cursor(sql, tuple(params))
+        cursor = _ejecutar_cursor(get_conexion_editor, sql, tuple(params))
         cursor.commit()
     st.cache_data.clear()
 
@@ -119,7 +155,8 @@ def mostrar_error_conexion(error):
     st.error(f"No se pudo consultar la base de datos VuelosDW.\n\nDetalle: {error}")
     st.info("Si la base de datos está en Azure, puede estar despertando (tarda ~1 minuto).")
     if st.button("Reintentar"):
-        get_conexion.clear()
+        get_conexion_lector.clear()
+        get_conexion_editor.clear()
         st.cache_data.clear()
         st.rerun()
     st.stop()
