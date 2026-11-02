@@ -156,6 +156,14 @@ Especificación completa (tipos, reglas y DDL): [`docs/01_modelo_dimensional.md`
 ## 4. Diseño y análisis de resultados de BI
 *(Completar en la entrega final: capturas del dashboard, hallazgos por página y propuesta de mejora con acciones, cronograma, recursos y costos.)*
 
+### Supuesto de costo del simulador (página Propuesta)
+El ahorro en USD se calcula como *minutos de demora ahorrados × costo por minuto*. El costo por defecto es
+**69 USD por minuto**, tomado de Airlines for America (A4A), *U.S. Passenger Carrier Delay Costs* (2025):
+la industria estima **98,41 USD por minuto de *block time***, de los cuales **29,34 USD son combustible**.
+98,41 − 29,34 ≈ 69. Se excluye el combustible como criterio conservador, ya que parte de la demora puede ocurrir en puerta sin consumo de combustible.
+Es un promedio de la industria, no un dato propio de
+JetBlue, por lo que el ahorro debe leerse como orden de magnitud. El valor es editable en la página.
+
 ## 5. Conclusiones
 *(Completar.)*
 
@@ -187,3 +195,4 @@ En Azure App Service: portal → la Web App → **Reiniciar**.
 - Kimball, R. & Ross, M. (2013). *The Data Warehouse Toolkit* (3.ª ed.). Wiley.
 - Bureau of Transportation Statistics. *Airline On-Time Performance Data*. https://www.transtats.bts.gov/
 - U.S. DOT. *Air Travel Consumer Report*. https://www.transportation.gov/individuals/aviation-consumer-protection/air-travel-consumer-reports
+- Airlines for America (2025). *U.S. Passenger Carrier Delay Costs*. https://www.airlines.org/dataset/u-s-passenger-carrier-delay-costs/

@@ -19,6 +19,7 @@ paginas = [
     st.Page("paginas/3_Horario.py", title="Horario", icon="🕒"),
     st.Page("paginas/4_Consultas_SQL.py", title="Consultas SQL", icon="🧮"),
     st.Page("paginas/5_Gestion_de_vuelos.py", title="Gestión de vuelos", icon="✏️"),
+    st.Page("paginas/6_Propuesta.py", title="Propuesta", icon="💡"),
 ]
 navegacion = st.navigation(paginas)
 filtros_sidebar()
