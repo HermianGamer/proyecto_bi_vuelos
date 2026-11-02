@@ -167,6 +167,22 @@ Especificación completa (tipos, reglas y DDL): [`docs/01_modelo_dimensional.md`
 ## Cómo ejecutar
 Ver [`PLAN_DE_ACCION.md`](PLAN_DE_ACCION.md) y [`docs/04_despliegue_azure.md`](docs/04_despliegue_azure.md).
 
+### Reiniciar Streamlit después de cambiar el código
+Streamlit vuelve a ejecutar la página al guardar un archivo (aparece **"Source file changed" → Rerun**
+arriba a la derecha; con **Always rerun** lo hace solo). Pero eso **no basta** cuando se cambia:
+- un módulo importado (`app/db.py`, `app/esquema.py`, `src/reglas.py`, `src/conexion.py`),
+- el archivo `.env` (credenciales o servidor),
+- `app/app.py` (lista de páginas del menú).
+
+En esos casos hay que reiniciar el servidor:
+1. En la terminal donde corre Streamlit, presionar **Ctrl + C**.
+2. Volver a ejecutar `streamlit run app/app.py`.
+3. Recargar el navegador (F5).
+
+Si los datos se ven desactualizados (p. ej. tras correr el ETL), basta con el menú **⋮ → Clear cache**
+o la tecla **C** en la página, y luego **R** para volver a ejecutarla.
+En Azure App Service: portal → la Web App → **Reiniciar**.
+
 ## Referencias
 - Kimball, R. & Ross, M. (2013). *The Data Warehouse Toolkit* (3.ª ed.). Wiley.
 - Bureau of Transportation Statistics. *Airline On-Time Performance Data*. https://www.transtats.bts.gov/

@@ -8,8 +8,10 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
+from datetime import date  # noqa: E402
+
 from reglas import (  # noqa: E402
-    a_numero, bloque, calcular_causa_cancelacion, calcular_causa_principal,
+    a_numero, atributos_fecha, bloque, calcular_arr_del15, calcular_causa_cancelacion, calcular_causa_principal,
     calcular_estado, calcular_horario, calcular_rango, franja, tipo_distancia,
 )
 
@@ -141,3 +143,23 @@ def test_franja(hora, nombre):
 def test_bloque(hora, texto):
     assert bloque(hora) == texto
     assert len(texto) == 9  # cabe en CHAR(9)
+
+
+# --- calcular_arr_del15 ---
+@pytest.mark.parametrize("demora, indicador", [
+    (-5, 0), (0, 0), (14, 0), (15, 1), (300, 1), (None, 0), ("", 0), ("15.00", 1),
+])
+def test_arr_del15(demora, indicador):
+    assert calcular_arr_del15(demora) == indicador
+
+
+# --- atributos_fecha ---
+def test_atributos_fecha_dia_normal():
+    assert atributos_fecha(date(2026, 7, 15)) == (20260715, date(2026, 7, 15), 2026, 3, 7, "Julio",
+                                                  "Miércoles", 0, 0)
+
+
+def test_atributos_fecha_feriado_en_fin_de_semana():
+    # 4 de julio de 2026 cae sábado y es feriado federal
+    fila = atributos_fecha(date(2026, 7, 4))
+    assert fila[6:] == ("Sábado", 1, 1)

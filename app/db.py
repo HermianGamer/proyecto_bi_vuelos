@@ -144,6 +144,25 @@ def ejecutar(sql, params=()):
     st.cache_data.clear()
 
 
+def ejecutar_transaccion(sentencias):
+    """Ejecuta varias sentencias [(sql, params), ...] con app_editor: todas o ninguna."""
+    with _bloqueo:
+        prueba = _ejecutar_cursor(get_conexion_editor, "SELECT 1", ())  # reconecta si hace falta
+        prueba.fetchall()
+        conn = prueba.connection
+        cursor = conn.cursor()
+        try:
+            for sql, params in sentencias:
+                cursor.execute(sql, tuple(params))
+            filas_afectadas = cursor.rowcount  # de la última sentencia
+            conn.commit()
+        except pyodbc.Error:
+            conn.rollback()
+            raise
+    st.cache_data.clear()
+    return filas_afectadas
+
+
 def formato(numero, decimales=1):
     """Número con formato peruano: coma decimal y punto de miles."""
     texto = f"{numero:,.{decimales}f}"

@@ -11,6 +11,8 @@ None o NaN; todos los vacíos se tratan como NULL.
 
 import math
 
+import holidays
+
 # Orden de desempate de causas: CAR, LAT, NAS, WEA, SEC
 ORDEN_CAUSAS = ["CAR", "LAT", "NAS", "WEA", "SEC"]
 SK_CAUSA = {"CAR": 2, "WEA": 3, "NAS": 4, "SEC": 5, "LAT": 6}
@@ -18,6 +20,12 @@ SK_CANCELACION = {"N": 0, "A": 1, "B": 2, "C": 3, "D": 4}
 
 # sk de DimEstadoVuelo
 A_TIEMPO, DEMORADO, CANCELADO, DESVIADO = 1, 2, 3, 4
+
+UMBRAL_DEMORA = 15  # minutos de demora de llegada desde los que un vuelo cuenta como demorado (ArrDel15)
+
+MESES = {1: "Enero", 2: "Febrero", 3: "Marzo", 4: "Abril", 5: "Mayo", 6: "Junio", 7: "Julio",
+         8: "Agosto", 9: "Septiembre", 10: "Octubre", 11: "Noviembre", 12: "Diciembre"}
+DIAS = {0: "Lunes", 1: "Martes", 2: "Miércoles", 3: "Jueves", 4: "Viernes", 5: "Sábado", 6: "Domingo"}
 
 
 def a_numero(valor):
@@ -47,6 +55,12 @@ def calcular_horario(crs_dep_time):
         raise ValueError("CRSDepTime no puede estar vacío")
     hora = int(hhmm) // 100
     return 0 if hora == 24 else hora
+
+
+def calcular_arr_del15(demora_llegada):
+    """Indicador ArrDel15 de BTS: 1 si llegó con 15 minutos o más de demora; vacío → 0."""
+    demora = a_numero(demora_llegada)
+    return int(demora is not None and demora >= UMBRAL_DEMORA)
 
 
 def calcular_estado(cancelado, desviado, arr_del15):
@@ -128,3 +142,11 @@ def franja(hora):
 def bloque(hora):
     """Bloque horario como texto, p. ej. 6 → "0600-0659"."""
     return f"{hora:02d}00-{hora:02d}59"
+
+
+def atributos_fecha(fecha):
+    """Fila de DimFecha para una fecha: (sk_fecha, fecha, anio, trimestre, mes, nombre_mes,
+    nombre_dia, es_fin_semana, es_feriado)."""
+    return (int(fecha.strftime("%Y%m%d")), fecha, fecha.year, (fecha.month - 1) // 3 + 1, fecha.month,
+            MESES[fecha.month], DIAS[fecha.weekday()], int(fecha.weekday() >= 5),
+            int(fecha in holidays.US(years=fecha.year)))

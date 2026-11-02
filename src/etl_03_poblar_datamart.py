@@ -12,7 +12,6 @@ import sys
 import warnings
 from pathlib import Path
 
-import holidays
 import pandas as pd
 import requests
 
@@ -135,9 +134,6 @@ RANGOS_DEMORA = [
     (4, "Moderada (45–119 min)", 45, 119, 4),
     (5, "Grave (120+ min)", 120, None, 5),
 ]
-MESES = {1: "Enero", 2: "Febrero", 3: "Marzo", 4: "Abril", 5: "Mayo", 6: "Junio", 7: "Julio",
-         8: "Agosto", 9: "Septiembre", 10: "Octubre", 11: "Noviembre", 12: "Diciembre"}
-DIAS = {0: "Lunes", 1: "Martes", 2: "Miércoles", 3: "Jueves", 4: "Viernes", 5: "Sábado", 6: "Domingo"}
 
 # Códigos de aeropuerto que BTS cambió dentro de la ventana: código nuevo → código que se conserva.
 # Palm Beach (Florida) pasó de PBI a DJT en agosto de 2026 al ser renombrado; es el mismo aeropuerto.
@@ -222,12 +218,7 @@ def cargar_dimensiones_fijas(conn):
 def cargar_dim_fecha(conn, df):
     """Carga DimFecha con todas las fechas entre la mínima y la máxima del staging."""
     fechas = pd.date_range(df["FlightDate"].min(), df["FlightDate"].max(), freq="D")
-    feriados = holidays.US(years=range(fechas.min().year, fechas.max().year + 1))
-    filas = [
-        (int(f.strftime("%Y%m%d")), f.date(), f.year, f.quarter, f.month, MESES[f.month],
-         DIAS[f.weekday()], int(f.weekday() >= 5), int(f.date() in feriados))
-        for f in fechas
-    ]
+    filas = [reglas.atributos_fecha(f.date()) for f in fechas]
     cargar_tabla(conn, "DimFecha", ["sk_fecha", "fecha", "anio", "trimestre", "mes", "nombre_mes",
                                     "nombre_dia", "es_fin_semana", "es_feriado"], filas)
 
