@@ -48,6 +48,8 @@ erDiagram
 | estado | CHAR(2) | NY, FL… | OriginState / DestState |
 | nombre_estado | NVARCHAR(50) | State name | OriginStateName / DestStateName |
 | es_base_principal | BIT | 1 if top-5 airport by JetBlue departures in window | computed in ETL |
+| latitud | DECIMAL(9,6) NULL | Latitude (for the map) | OurAirports `airports.csv` by `iata_code` (fallback: `ident` = "K"+IATA) |
+| longitud | DECIMAL(9,6) NULL | Longitude (for the map) | same |
 
 ### D3 `DimRuta` — origin–destination pair
 | Field | Type | Meaning | Source |
@@ -163,7 +165,8 @@ CREATE TABLE DimFecha (
 CREATE TABLE DimAeropuerto (
     sk_aeropuerto INT IDENTITY(1,1) PRIMARY KEY, codigo_iata CHAR(3) NOT NULL UNIQUE,
     ciudad NVARCHAR(60) NULL, estado CHAR(2) NULL, nombre_estado NVARCHAR(50) NULL,
-    es_base_principal BIT NOT NULL DEFAULT 0);
+    es_base_principal BIT NOT NULL DEFAULT 0,
+    latitud DECIMAL(9,6) NULL, longitud DECIMAL(9,6) NULL);
 
 CREATE TABLE DimRuta (
     sk_ruta INT IDENTITY(1,1) PRIMARY KEY, ruta VARCHAR(7) NOT NULL UNIQUE,

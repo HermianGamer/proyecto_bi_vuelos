@@ -99,9 +99,10 @@ erDiagram
 | Campo | Descripción |
 |---|---|
 | sk_aeropuerto | Clave subrogada |
-| codigo_iata | Código del aeropuerto (JFK, BOS…) |
+| codigo_iata | Código del aeropuerto (JFK, BOS…). En agosto de 2026 BTS cambió el código de Palm Beach (FL) de PBI a DJT porque el aeropuerto fue renombrado. Como es el mismo aeropuerto, el ETL reemplaza DJT por PBI (el código de 11 de los 12 meses) para no partirlo en dos. |
 | ciudad, estado, nombre_estado | Ubicación |
 | es_base_principal | 1 si está entre los 5 aeropuertos con más salidas de JetBlue |
+| latitud, longitud | Coordenadas del aeropuerto para el mapa (fuente pública: OurAirports, `airports.csv`) |
 
 **D3 DimRuta**
 | Campo | Descripción |

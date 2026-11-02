@@ -9,7 +9,12 @@ IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='DimAeropuerto' AND xtype='U'
 CREATE TABLE DimAeropuerto (
     sk_aeropuerto INT IDENTITY(1,1) PRIMARY KEY, codigo_iata CHAR(3) NOT NULL UNIQUE,
     ciudad NVARCHAR(60) NULL, estado CHAR(2) NULL, nombre_estado NVARCHAR(50) NULL,
-    es_base_principal BIT NOT NULL DEFAULT 0);
+    es_base_principal BIT NOT NULL DEFAULT 0,
+    latitud DECIMAL(9,6) NULL, longitud DECIMAL(9,6) NULL);
+
+-- Si la tabla ya existía sin coordenadas, se agregan las columnas
+IF COL_LENGTH('DimAeropuerto', 'latitud') IS NULL
+ALTER TABLE DimAeropuerto ADD latitud DECIMAL(9,6) NULL, longitud DECIMAL(9,6) NULL;
 
 IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='DimRuta' AND xtype='U')
 CREATE TABLE DimRuta (

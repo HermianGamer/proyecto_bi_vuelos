@@ -14,6 +14,7 @@ from pathlib import Path
 
 import holidays
 import pandas as pd
+import requests
 
 import reglas
 from conexion import a_filas, get_connection_destino, get_connection_origen, insertar_por_lotes
@@ -22,6 +23,10 @@ from conexion import a_filas, get_connection_destino, get_connection_origen, ins
 warnings.filterwarnings("ignore", message=".*pandas only supports SQLAlchemy.*")
 
 SCRIPT_DATAMART = Path(__file__).resolve().parent.parent / "sql" / "02_crear_datamart.sql"
+
+# Coordenadas de aeropuertos: datos públicos de OurAirports (se descargan una vez y se guardan)
+URL_OURAIRPORTS = "https://davidmegginson.github.io/ourairports-data/airports.csv"
+CSV_OURAIRPORTS = Path(__file__).resolve().parent.parent / "data" / "ourairports_airports.csv"
 
 DDL_DATAMART = """
 IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='DimFecha' AND xtype='U')
@@ -34,7 +39,12 @@ IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='DimAeropuerto' AND xtype='U'
 CREATE TABLE DimAeropuerto (
     sk_aeropuerto INT IDENTITY(1,1) PRIMARY KEY, codigo_iata CHAR(3) NOT NULL UNIQUE,
     ciudad NVARCHAR(60) NULL, estado CHAR(2) NULL, nombre_estado NVARCHAR(50) NULL,
-    es_base_principal BIT NOT NULL DEFAULT 0);
+    es_base_principal BIT NOT NULL DEFAULT 0,
+    latitud DECIMAL(9,6) NULL, longitud DECIMAL(9,6) NULL);
+
+-- Si la tabla ya existía sin coordenadas, se agregan las columnas
+IF COL_LENGTH('DimAeropuerto', 'latitud') IS NULL
+ALTER TABLE DimAeropuerto ADD latitud DECIMAL(9,6) NULL, longitud DECIMAL(9,6) NULL;
 
 IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='DimRuta' AND xtype='U')
 CREATE TABLE DimRuta (
@@ -129,6 +139,10 @@ MESES = {1: "Enero", 2: "Febrero", 3: "Marzo", 4: "Abril", 5: "Mayo", 6: "Junio"
          8: "Agosto", 9: "Septiembre", 10: "Octubre", 11: "Noviembre", 12: "Diciembre"}
 DIAS = {0: "Lunes", 1: "Martes", 2: "Miércoles", 3: "Jueves", 4: "Viernes", 5: "Sábado", 6: "Domingo"}
 
+# Códigos de aeropuerto que BTS cambió dentro de la ventana: código nuevo → código que se conserva.
+# Palm Beach (Florida) pasó de PBI a DJT en agosto de 2026 al ser renombrado; es el mismo aeropuerto.
+CODIGOS_UNIFICADOS = {"DJT": "PBI"}
+
 # columnas de minutos por causa: staging → hecho
 MINUTOS_CAUSA = {
     "CarrierDelay": "min_causa_aerolinea",
@@ -183,6 +197,16 @@ def cargar_tabla(conn, tabla, columnas, filas):
     print(f"✓ {tabla}: {len(filas):,} filas")
 
 
+def unificar_codigos(df):
+    """Reemplaza en origen y destino los códigos de aeropuerto renombrados (antes de armar las dimensiones)."""
+    for nuevo, conservado in CODIGOS_UNIFICADOS.items():
+        cantidad = (df["Origin"] == nuevo).sum() + (df["Dest"] == nuevo).sum()
+        print(f"  Código {nuevo} → {conservado}: {cantidad:,} apariciones (origen + destino)")
+    df["Origin"] = df["Origin"].replace(CODIGOS_UNIFICADOS)
+    df["Dest"] = df["Dest"].replace(CODIGOS_UNIFICADOS)
+    return df
+
+
 def cargar_dimensiones_fijas(conn):
     """Carga las 5 dimensiones con valores fijos."""
     horas = [(h, reglas.bloque(h), reglas.franja(h)) for h in range(24)]
@@ -208,16 +232,46 @@ def cargar_dim_fecha(conn, df):
                                     "nombre_dia", "es_fin_semana", "es_feriado"], filas)
 
 
+def leer_coordenadas():
+    """Lee latitud/longitud de OurAirports (descarga el CSV a data/ si aún no está)."""
+    if not CSV_OURAIRPORTS.exists():
+        print(f"Descargando coordenadas de aeropuertos de {URL_OURAIRPORTS} ...")
+        respuesta = requests.get(URL_OURAIRPORTS, timeout=60)
+        respuesta.raise_for_status()
+        CSV_OURAIRPORTS.write_bytes(respuesta.content)
+    df = pd.read_csv(CSV_OURAIRPORTS, usecols=["ident", "type", "iata_code", "latitude_deg", "longitude_deg"],
+                     keep_default_na=False, na_values=[""])
+    df = df[df["type"] != "closed"]
+    # si un código IATA se repite, se queda el aeropuerto más grande
+    tamano = {"large_airport": 0, "medium_airport": 1, "small_airport": 2}
+    df = df.assign(orden=df["type"].map(tamano).fillna(9)).sort_values("orden")
+    return df[["ident", "iata_code", "latitude_deg", "longitude_deg"]].round(6)
+
+
+def buscar_coordenadas(codigos, coordenadas):
+    """Latitud y longitud por código IATA; si no aparece, busca el código OACI "K" + IATA (p. ej. PBI → KPBI)."""
+    por_iata = coordenadas.dropna(subset=["iata_code"]).drop_duplicates("iata_code").set_index("iata_code")
+    por_oaci = coordenadas.drop_duplicates("ident").set_index("ident")
+    latitud = codigos.map(por_iata["latitude_deg"]).fillna(("K" + codigos).map(por_oaci["latitude_deg"]))
+    longitud = codigos.map(por_iata["longitude_deg"]).fillna(("K" + codigos).map(por_oaci["longitude_deg"]))
+    return latitud, longitud
+
+
 def cargar_dim_aeropuerto(conn, df):
-    """Carga DimAeropuerto con orígenes y destinos; marca las 5 bases principales."""
+    """Carga DimAeropuerto con orígenes y destinos; marca las 5 bases principales y agrega coordenadas."""
     columnas = ["codigo_iata", "ciudad", "estado", "nombre_estado"]
     origenes = df[["Origin", "OriginCityName", "OriginState", "OriginStateName"]].set_axis(columnas, axis=1)
     destinos = df[["Dest", "DestCityName", "DestState", "DestStateName"]].set_axis(columnas, axis=1)
     aeropuertos = pd.concat([origenes, destinos]).drop_duplicates("codigo_iata").sort_values("codigo_iata")
     bases = df["Origin"].value_counts().head(5).index
     aeropuertos["es_base_principal"] = aeropuertos["codigo_iata"].isin(bases).astype(int)
-    cargar_tabla(conn, "DimAeropuerto", columnas + ["es_base_principal"], a_filas(aeropuertos))
+    aeropuertos["latitud"], aeropuertos["longitud"] = buscar_coordenadas(aeropuertos["codigo_iata"],
+                                                                        leer_coordenadas())
+    cargar_tabla(conn, "DimAeropuerto", columnas + ["es_base_principal", "latitud", "longitud"],
+                 a_filas(aeropuertos))
     print(f"  Bases principales: {', '.join(bases)}")
+    sin_coordenadas = aeropuertos.loc[aeropuertos["latitud"].isna(), "codigo_iata"].tolist()
+    print(f"  Aeropuertos sin coordenadas: {', '.join(sin_coordenadas) if sin_coordenadas else 'ninguno'}")
 
 
 def cargar_dim_ruta(conn, df):
@@ -340,7 +394,9 @@ def main():
 
     print("Leyendo staging...")
     df = pd.read_sql("SELECT * FROM dbo.stg_vuelos", source_conn)
-    print(f"✓ {len(df):,} filas leídas de stg_vuelos\n")
+    print(f"✓ {len(df):,} filas leídas de stg_vuelos")
+    df = unificar_codigos(df)
+    print()
 
     cargar_dimensiones_fijas(dest_conn)
     cargar_dim_fecha(dest_conn, df)
