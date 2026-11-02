@@ -12,7 +12,7 @@ from datetime import date  # noqa: E402
 
 from reglas import (  # noqa: E402
     a_numero, atributos_fecha, bloque, calcular_arr_del15, calcular_causa_cancelacion, calcular_causa_principal,
-    calcular_estado, calcular_horario, calcular_rango, franja, tipo_distancia,
+    calcular_estado, calcular_horario, calcular_rango, franja, temporada, tipo_distancia,
 )
 
 NAN = float("nan")
@@ -163,3 +163,12 @@ def test_atributos_fecha_feriado_en_fin_de_semana():
     # 4 de julio de 2026 cae sábado y es feriado federal
     fila = atributos_fecha(date(2026, 7, 4))
     assert fila[6:] == ("Sábado", 1, 1)
+
+
+# --- temporada ---
+@pytest.mark.parametrize("mes, esperado", [
+    (12, "Invierno"), (1, "Invierno"), (2, "Invierno"), (3, "Resto del año"), (5, "Resto del año"),
+    (6, "Verano"), (8, "Verano"), (9, "Resto del año"), (11, "Resto del año"),
+])
+def test_temporada(mes, esperado):
+    assert temporada(mes) == esperado

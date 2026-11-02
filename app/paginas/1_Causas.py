@@ -15,6 +15,20 @@ CAUSAS = list(COLORES_CAUSA)
 ORDEN_CONTROL = ["Sí", "Parcial", "No"]
 
 
+def cancelaciones_por_mes(where, params, causas):
+    """Vuelos cancelados por mes y causa de cancelación."""
+    cond, p = filtro_causas(causas)
+    df = consultar(f"""
+        SELECT d.anio, d.mes, c.causa AS Causa, COUNT(*) AS Cancelaciones
+        {FROM_VUELOS}
+        JOIN DimCausaCancelacion c ON f.sk_causa_cancelacion = c.sk_causa_cancelacion
+        {where} AND f.es_cancelado = 1 {cond}
+        GROUP BY d.anio, d.mes, c.causa ORDER BY d.anio, d.mes
+    """, params + p)
+    df["Mes"] = df["anio"].astype(str) + "-" + df["mes"].astype(str).str.zfill(2)
+    return df
+
+
 def filtro_causas(causas):
     """Condición SQL y parámetros para las causas elegidas en el filtro local."""
     return f" AND c.causa IN ({', '.join('?' * len(causas))})", tuple(causas)
@@ -72,6 +86,7 @@ try:
     df_causa = minutos_por_causa(where, params, causas)
     df_mes = participacion_por_mes(where, params, causas)
     df_cancel = cancelaciones_por_causa(where, params, causas)
+    df_cancel_mes = cancelaciones_por_mes(where, params, causas)
 except pyodbc.Error as e:
     mostrar_error_conexion(e)
 
@@ -80,13 +95,18 @@ if df_causa.empty:
     st.stop()
 
 total = df_causa["Minutos"].sum()
+df_causa["% de minutos"] = df_causa["Minutos"] * 100 / total
+df_cancel["% de cancelaciones"] = df_cancel["Cancelaciones"] * 100 / df_cancel["Cancelaciones"].sum()
 principal = df_causa.sort_values("Minutos", ascending=False).iloc[0]
 controlable = df_causa.loc[df_causa["Controlable"] == "Sí", "Minutos"].sum()
+parcial = df_causa.loc[df_causa["Controlable"] == "Parcial", "Minutos"].sum()
 c1, c2, c3, c4 = st.columns(4)
 c1.metric("Minutos de demora", formato(total, 0))
 c2.metric("Causa principal", principal["Causa"], f"{formato(principal['Minutos'] * 100 / total)} % de los minutos",
           delta_color="off")
-c3.metric("Minutos controlables (Aerolínea)", f"{formato(controlable * 100 / total)} %")
+c3.metric("Minutos controlables (Sí + Parcial)", f"{formato((controlable + parcial) * 100 / total)} %",
+          f"Aerolínea {formato(controlable * 100 / total)} % · Avión anterior {formato(parcial * 100 / total)} %",
+          delta_color="off")
 c4.metric("Vuelos cancelados", formato(df_cancel["Cancelaciones"].sum(), 0))
 
 fig = px.bar(df_mes, x="Mes", y="% de minutos", color="Causa", title="Participación de cada causa por mes (% de minutos)",
@@ -111,11 +131,19 @@ with col_der:
     else:
         fig = px.bar(df_cancel, x="Causa", y="Cancelaciones", color="Causa", text_auto=",.0f",
                      title="Vuelos cancelados por causa", color_discrete_map=COLORES_CAUSA,
-                     category_orders={"Causa": CAUSAS})
+                     category_orders={"Causa": CAUSAS}, hover_data={"% de cancelaciones": ":.1f"})
         fig.update_layout(showlegend=False, xaxis_title="")
         st.plotly_chart(fig, width="stretch")
         st.caption("BTS no tiene la causa «Avión anterior retrasado» para cancelaciones.")
 
+if not df_cancel_mes.empty:
+    fig = px.bar(df_cancel_mes, x="Mes", y="Cancelaciones", color="Causa", title="Vuelos cancelados por mes y causa",
+                 color_discrete_map=COLORES_CAUSA, category_orders={"Causa": CAUSAS})
+    fig.update_layout(xaxis_type="category", legend_title_text="")
+    st.plotly_chart(fig, width="stretch")
+
 with st.expander("Ver datos en tabla"):
     st.dataframe(df_causa.sort_values("Minutos", ascending=False), hide_index=True, width="stretch")
     st.dataframe(df_cancel, hide_index=True, width="stretch")
+    st.dataframe(df_cancel_mes.pivot_table(index="Mes", columns="Causa", values="Cancelaciones", fill_value=0)
+                 .reset_index(), hide_index=True, width="stretch")

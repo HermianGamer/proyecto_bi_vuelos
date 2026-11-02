@@ -139,6 +139,17 @@ def franja(hora):
     return "Noche"
 
 
+# Temporadas para comparar invierno y verano (meses del hemisferio norte); el resto de meses va junto
+MESES_TEMPORADA = {12: "Invierno", 1: "Invierno", 2: "Invierno", 6: "Verano", 7: "Verano", 8: "Verano"}
+TEMPORADA_RESTO = "Resto del año"
+TEMPORADAS = ["Invierno", "Verano", TEMPORADA_RESTO]
+
+
+def temporada(mes):
+    """Temporada de un mes 1–12: Invierno (dic–feb), Verano (jun–ago) o Resto del año."""
+    return MESES_TEMPORADA.get(mes, TEMPORADA_RESTO)
+
+
 def bloque(hora):
     """Bloque horario como texto, p. ej. 6 → "0600-0659"."""
     return f"{hora:02d}00-{hora:02d}59"

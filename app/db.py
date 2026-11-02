@@ -20,6 +20,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 from conexion import (  # noqa: E402
     DB_DW, DB_EDITOR_PASSWORD, DB_EDITOR_USER, DB_LECTOR_PASSWORD, DB_LECTOR_USER, cadena_conexion,
 )
+import reglas  # noqa: E402
 
 TIMEOUT_CONSULTA = 30  # segundos máximos por consulta de lectura
 
@@ -65,6 +66,17 @@ MINUTOS_POR_CAUSA = """
                         ('LAT', f.min_causa_avion_tardio)) AS m(codigo, minutos)
     JOIN DimCausaDemora c ON c.codigo = m.codigo
 """
+
+
+
+def sql_temporada(columna_mes="d.mes"):
+    """Expresión CASE de SQL con la temporada del mes, armada desde src/reglas.py (no se duplica la regla)."""
+    meses = {}
+    for mes, nombre in reglas.MESES_TEMPORADA.items():
+        meses.setdefault(nombre, []).append(str(mes))
+    casos = " ".join(f"WHEN {columna_mes} IN ({', '.join(m)}) THEN N'{nombre}'" for nombre, m in meses.items())
+    return f"CASE {casos} ELSE N'{reglas.TEMPORADA_RESTO}' END"
+
 
 _bloqueo = threading.Lock()  # conexiones compartidas: una consulta a la vez
 
