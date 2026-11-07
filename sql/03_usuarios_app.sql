@@ -5,13 +5,13 @@
 -- Las contraseñas NO se escriben aquí: $(DB_LECTOR_PASSWORD), $(DB_EDITOR_PASSWORD) y $(DB_DW)
 -- son variables (estilo sqlcmd) que reemplaza src/crear_usuarios_app.py con los valores del .env.
 -- Ejecutar:  python src/crear_usuarios_app.py
--- Se puede volver a ejecutar: si el login ya existe, solo actualiza la contraseña.
+-- El script elige la sección según DB_SERVER (localhost → LOCAL, Azure → AZURE) y luego
+-- aplica PERMISOS. Se puede volver a ejecutar: si el usuario ya existe, solo cambia la contraseña.
+-- En Azure las contraseñas NO pueden contener el nombre del usuario (error 40632).
 
--- =====================================================================
--- VERSIÓN LOCAL (SQL Server en la laptop): login de servidor + usuario
--- SQL Server local no admite usuarios contenidos por defecto, así que
--- primero se crea el LOGIN en master y luego el USER en la base de datos.
--- =====================================================================
+-- ==== LOCAL =========================================================
+-- SQL Server en la laptop: login de servidor (en master) + usuario en la BD.
+-- SQL Server local no admite usuarios contenidos por defecto.
 USE master;
 GO
 IF NOT EXISTS (SELECT 1 FROM sys.server_principals WHERE name = 'app_lector')
@@ -33,7 +33,22 @@ IF NOT EXISTS (SELECT 1 FROM sys.database_principals WHERE name = 'app_editor')
     CREATE USER app_editor FOR LOGIN app_editor;
 GO
 
--- Permisos (iguales en local y en Azure)
+-- ==== AZURE =========================================================
+-- Azure SQL Database: usuarios contenidos (viven solo dentro de VuelosDW,
+-- sin login de servidor). Se ejecuta conectado directamente a VuelosDW.
+IF NOT EXISTS (SELECT 1 FROM sys.database_principals WHERE name = 'app_lector')
+    CREATE USER app_lector WITH PASSWORD = '$(DB_LECTOR_PASSWORD)';
+ELSE
+    ALTER USER app_lector WITH PASSWORD = '$(DB_LECTOR_PASSWORD)';
+
+IF NOT EXISTS (SELECT 1 FROM sys.database_principals WHERE name = 'app_editor')
+    CREATE USER app_editor WITH PASSWORD = '$(DB_EDITOR_PASSWORD)';
+ELSE
+    ALTER USER app_editor WITH PASSWORD = '$(DB_EDITOR_PASSWORD)';
+GO
+
+-- ==== PERMISOS ======================================================
+-- Iguales en local y en Azure (se ejecutan dentro de VuelosDW).
 ALTER ROLE db_datareader ADD MEMBER app_lector;
 
 GRANT SELECT ON SCHEMA::dbo TO app_editor;
@@ -42,19 +57,3 @@ GRANT INSERT ON dbo.DimFecha TO app_editor;
 GRANT INSERT ON dbo.DimAeropuerto TO app_editor;
 GRANT INSERT ON dbo.DimRuta TO app_editor;
 GO
-
--- =====================================================================
--- VERSIÓN AZURE SQL DATABASE: usuarios contenidos (sin login de servidor)
--- En Azure no existe USE master ni CREATE LOGIN para esto: conectarse
--- directamente a VuelosDW como administrador y ejecutar este bloque en el
--- editor de consultas del portal, con las contraseñas reales, en lugar de
--- la versión local de arriba. Luego aplicar los mismos permisos.
--- =====================================================================
--- CREATE USER app_lector WITH PASSWORD = '<contraseña-fuerte-1>';
--- CREATE USER app_editor WITH PASSWORD = '<contraseña-fuerte-2>';
--- ALTER ROLE db_datareader ADD MEMBER app_lector;
--- GRANT SELECT ON SCHEMA::dbo TO app_editor;
--- GRANT INSERT, UPDATE, DELETE ON dbo.FactVuelos TO app_editor;
--- GRANT INSERT ON dbo.DimFecha TO app_editor;
--- GRANT INSERT ON dbo.DimAeropuerto TO app_editor;
--- GRANT INSERT ON dbo.DimRuta TO app_editor;

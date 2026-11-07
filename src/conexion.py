@@ -33,6 +33,11 @@ INTENTOS = 3
 ESPERA_SEGUNDOS = 20  # la BD serverless de Azure se pausa y tarda en despertar
 
 
+def es_servidor_local():
+    """True si DB_SERVER es el SQL Server de la laptop; False si es Azure."""
+    return DB_SERVER.split(",")[0] in ("localhost", "127.0.0.1", ".")
+
+
 def cadena_conexion(base_datos, usuario=None, clave=None):
     """Arma la cadena de conexión según sea servidor local o Azure (por defecto, usuario del .env)."""
     cadena = (
@@ -42,7 +47,7 @@ def cadena_conexion(base_datos, usuario=None, clave=None):
         f"UID={usuario or DB_USER};"
         f"PWD={clave or DB_PASSWORD};"
     )
-    if DB_SERVER.split(",")[0] in ("localhost", "127.0.0.1", "."):
+    if es_servidor_local():
         cadena += "TrustServerCertificate=yes;"
     else:
         cadena += "Encrypt=yes;TrustServerCertificate=no;Connection Timeout=60;"
