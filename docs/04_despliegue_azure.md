@@ -87,7 +87,8 @@ GRANT INSERT ON dbo.DimRuta TO app_editor;
    | `SCM_DO_BUILD_DURING_DEPLOYMENT` | `true` |
    | `WEBSITES_PORT` | `8000` |
 4. *Deployment Center* → Source: **GitHub** → repo y rama `main` → guarda. Azure crea un workflow de GitHub Actions: cada `git push` despliega solo.
-5. Abrir `https://<tu-app>.azurewebsites.net`.
+5. Abrir la app: <https://bi-vuelos-jetblue-heh5fuenaqh9h0hk.brazilsouth-01.azurewebsites.net>
+   La primera carga puede tardar **~1 minuto**: VuelosDW es serverless y se pausa cuando nadie la usa. Si aparece el aviso de conexión, esperar y pulsar **Reintentar**.
 
 ## 7. Si algo falla
 - *Monitoring → Log stream*: errores en vivo.

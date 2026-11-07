@@ -9,7 +9,7 @@ Proyecto final — Business Intelligence · Universidad del Pacífico · 2026-2
 | **Fuente** | Bureau of Transportation Statistics (BTS), *Reporting Carrier On-Time Performance*. Datos reales y públicos |
 | **Periodo** | Últimos 12 meses publicados (sep-2025 a ago-2026, ajustar al descargar) |
 | **Stack** | Python (pandas, pyodbc) · Azure SQL Database · Streamlit en Azure App Service |
-| **Dashboard** | `https://<app>.azurewebsites.net` *(completar)* |
+| **Dashboard** | <https://bi-vuelos-jetblue-heh5fuenaqh9h0hk.brazilsouth-01.azurewebsites.net> — la primera carga puede tardar ~1 minuto mientras la base de datos serverless de Azure se reactiva |
 
 ---
 
@@ -158,7 +158,7 @@ Especificación completa (tipos, reglas y DDL): [`docs/01_modelo_dimensional.md`
 El dashboard (Streamlit en Azure App Service) consulta en vivo el data mart `VuelosDW` y tiene 7 páginas con filtros globales (fechas, origen, destino, distancia, franja horaria y tipo de día). Cifras de sep-2025 a ago-2026, **240.615 vuelos**, sin filtros salvo que se indique.
 
 ### 4.1 Resumen
-![Página Resumen](docs/capturas/resumen.png) *(captura pendiente)*
+![Página Resumen](docs/capturas/resumen.png)
 
 - Puntualidad **68,5 %**, cancelación **3,6 %**, demora promedio de los vuelos demorados **76,8 min**.
 - Solo el 68,5 % llega bajo 15 min; el **4,8 %** de los vuelos llega con más de 2 horas de demora.
@@ -166,7 +166,7 @@ El dashboard (Streamlit en Azure App Service) consulta en vivo el data mart `Vue
 - La **distancia** casi no cambia el resultado (filtro «Tipo de distancia»: corta 67,6 %, media 68,0 %, larga 70,2 %): el problema es operativo, no de la ruta en sí.
 
 ### 4.2 Causas de demora
-![Página Causas](docs/capturas/causas.png) *(captura pendiente)*
+![Página Causas](docs/capturas/causas.png)
 
 | Causa (minutos de demora) | % | Controlable |
 |---|---|---|
@@ -181,7 +181,7 @@ El dashboard (Streamlit en Azure App Service) consulta en vivo el data mart `Vue
 - **Cancelaciones (8.577):** clima 41,8 %, control de tráfico aéreo 33,9 %, aerolínea 24,3 %.
 
 ### 4.3 Aeropuertos y rutas
-![Página Aeropuertos y rutas](docs/capturas/aeropuertos.png) *(captura pendiente)*
+![Página Aeropuertos y rutas](docs/capturas/aeropuertos.png)
 
 - **Bases principales:** BOS 67,5 %, JFK 67,0 %, **FLL 64,7 %** (la peor), MCO 69,1 %, SJU 71,7 %.
 - **Peores aeropuertos** (mín. 300 vuelos): IAH **47,8 %**, SEA 51,1 %, DEN 62,1 %, LGA 63,1 %, ACK 63,3 % (7,3 % cancelado). Los mejores: PQI 87,4 % y PSE 86,8 %.
@@ -191,14 +191,14 @@ El dashboard (Streamlit en Azure App Service) consulta en vivo el data mart `Vue
 - Los datos de un aeropuerto están en la tabla «Ver datos de aeropuertos». Los de una ruta (p. ej. DCA-BOS, 60,0 % puntual; IAH-JFK, 10,2 % cancelado) se ven en Resumen filtrando el origen y el destino.
 
 ### 4.4 Horario: efecto en cadena
-![Página Horario](docs/capturas/horario.png) *(captura pendiente)*
+![Página Horario](docs/capturas/horario.png)
 
 - La puntualidad cae casi sin pausa durante el día: **84,3 %** a las 6 h → **66,2 %** a las 12 h → **56,8 %** a las 19 h (−27,5 puntos).
 - En la misma línea sube el peso de «Avión anterior retrasado» en los minutos de demora: **31,4 %** en la mañana, 45,5 % en la tarde y **53,5 %** en la noche.
 - Conclusión: una demora temprana se arrastra en la rotación del avión. Cortar la cadena en la mañana es la palanca de mayor impacto.
 
 ### 4.5 Temporadas: invierno vs. verano
-![Resumen: invierno vs. verano](docs/capturas/temporadas.png) *(captura pendiente)*
+![Resumen: invierno vs. verano](docs/capturas/temporadas.png)
 
 Sección «Invierno vs. verano» de la página Resumen y gráfico «Vuelos cancelados por mes y causa» de la página Causas.
 
@@ -212,14 +212,14 @@ Sección «Invierno vs. verano» de la página Resumen y gráfico «Vuelos cance
 - **Julio de 2026** fue el peor mes: 9,8 % cancelado (2.279 vuelos), de los cuales **754 por causa de la aerolínea**. Agosto: 582. El resto del año, menos de 250 por mes.
 
 ### 4.6 Consultas SQL y Gestión de vuelos
-![Página Consultas SQL](docs/capturas/consultas_sql.png) *(captura pendiente)*
-![Página Gestión de vuelos](docs/capturas/gestion.png) *(captura pendiente)*
+![Página Consultas SQL](docs/capturas/consultas_sql.png)
+![Página Gestión de vuelos](docs/capturas/gestion.png)
 
 - **Consultas SQL:** consola de solo lectura (usuario `app_lector`) con diagrama estrella y consultas de ejemplo, para que un analista responda preguntas nuevas sin tocar el código.
 - **Gestión de vuelos:** registrar, editar y eliminar vuelos (usuario `app_editor`), aplicando las mismas reglas del ETL (`src/reglas.py`).
 
 ### 4.7 Propuesta de mejora
-![Página Propuesta](docs/capturas/propuesta.png) *(captura pendiente)*
+![Página Propuesta](docs/capturas/propuesta.png)
 
 **Simulador.** Para cada vuelo demorado real, la página resta un % de sus minutos de «Aerolínea» y de «Avión anterior retrasado»; si la nueva demora queda bajo 15 min, el vuelo pasa a puntual. Ahorro = minutos ahorrados × costo por minuto.
 
