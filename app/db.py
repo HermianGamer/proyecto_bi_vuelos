@@ -6,6 +6,7 @@ Todas las consultas se ejecutan en vivo contra el Data Mart, siempre
 parametrizadas (?) y agregadas en SQL. Nunca se generan datos de ejemplo.
 """
 
+import os
 import sys
 import threading
 from datetime import date
@@ -18,7 +19,8 @@ import streamlit as st
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 from conexion import (  # noqa: E402
-    DB_DW, DB_EDITOR_PASSWORD, DB_EDITOR_USER, DB_LECTOR_PASSWORD, DB_LECTOR_USER, cadena_conexion,
+    DB_DRIVER, DB_DW, DB_EDITOR_PASSWORD, DB_EDITOR_USER, DB_LECTOR_PASSWORD, DB_LECTOR_USER,
+    cadena_conexion,
 )
 import reglas  # noqa: E402
 
@@ -79,6 +81,20 @@ def sql_temporada(columna_mes="d.mes"):
 
 
 _bloqueo = threading.Lock()  # conexiones compartidas: una consulta a la vez
+
+# Variables que la app necesita (en Azure vienen de las App Settings, no de un .env)
+VARIABLES_REQUERIDAS = ["DB_SERVER", "DB_LECTOR_PASSWORD", "DB_EDITOR_PASSWORD"]
+
+
+def revisar_entorno():
+    """Devuelve la lista de problemas de configuración (variables faltantes o driver ODBC no instalado)."""
+    problemas = [f"Falta la variable de entorno **{v}** (App Settings en Azure, .env en local)."
+                 for v in VARIABLES_REQUERIDAS if not os.getenv(v)]
+    if DB_DRIVER not in pyodbc.drivers():
+        instalados = ", ".join(pyodbc.drivers()) or "ninguno"
+        problemas.append(f"El driver ODBC **{DB_DRIVER}** no está instalado en este servidor "
+                         f"(drivers instalados: {instalados}). Revise la variable DB_DRIVER.")
+    return problemas
 
 
 # ------------------------------------------------------------------ Conexión ---

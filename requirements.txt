@@ -1,3 +1,4 @@
+# Dependencias de la app y del ETL (es lo que instala Azure App Service al desplegar)
 pandas>=2.2
 pyodbc>=5.1
 python-dotenv>=1.0
@@ -6,6 +7,3 @@ requests>=2.32
 streamlit>=1.38
 streamlit-ace>=0.1.1
 plotly>=5.22
-pytest>=8.0
-ipykernel>=6.29
-nbconvert>=7.16

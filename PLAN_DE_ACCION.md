@@ -5,7 +5,7 @@ Cada fase termina con un commit. Entre paréntesis, el criterio de la rúbrica q
 ## Fase 0 — Preparación (1 día)
 - [x] Crear repo nuevo en GitHub, agregar a los 4 integrantes y al profesor (`javierwam`).
 - [x] Copiar el contenido de esta carpeta al repo y hacer el primer commit.
-- [x] Crear entorno: `python -m venv .venv` + `pip install -r requirements.txt`.
+- [x] Crear entorno: `python -m venv .venv` + `pip install -r requirements-dev.txt` (en Azure solo se instala `requirements.txt`).
 - [x] Instalar **ODBC Driver 18 for SQL Server** en la laptop.
 - [x] Copiar `.env.example` → `.env` apuntando al SQL Server local.
 

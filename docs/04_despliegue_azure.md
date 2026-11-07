@@ -67,15 +67,15 @@ GRANT INSERT ON dbo.DimRuta TO app_editor;
 
 ## 6. App Service para Streamlit
 1. Portal → *App Services* → Create → **Web App**.
-   - Publish: Code · Runtime: **Python 3.11** · OS: **Linux** · misma región.
-   - Plan: prueba **Free F1**; si va lento o se cae, cambia a **Basic B1** (≈ USD 13/mes del crédito; aplícalo solo las últimas semanas y apágalo después).
+   - Publish: Code · Runtime: **Python 3.12** · OS: **Linux** · misma región.
+   - Plan: **Basic B1** (≈ USD 13/mes del crédito). Se cobra por hora mientras el plan exista, aunque la app esté detenida: al terminar el curso, **elimina el plan** (o bájalo a F1).
 2. *Settings → Configuration → General settings*:
    - **Startup command:**
      ```
      python -m streamlit run app/app.py --server.port 8000 --server.address 0.0.0.0 --server.headless true
      ```
    - **Web sockets: On** (Streamlit los necesita).
-   - Always on: On (solo disponible en B1).
+   - **Always on: On** (la app no se apaga por inactividad). Ojo: esto no mantiene despierta la BD serverless; si nadie usó la app en ~1 hora, la primera consulta tarda ~1 minuto mientras VuelosDW se reactiva.
 3. *Settings → Environment variables (App settings)*:
    | Nombre | Valor |
    |---|---|

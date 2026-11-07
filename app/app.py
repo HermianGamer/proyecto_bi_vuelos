@@ -8,9 +8,18 @@ Ejecutar: streamlit run app/app.py
 
 import streamlit as st
 
-from db import filtros_sidebar
-
 st.set_page_config(page_title="JetBlue — Puntualidad", page_icon="✈️", layout="wide")
+
+try:
+    from db import filtros_sidebar, revisar_entorno
+except ImportError as e:  # p. ej. pyodbc sin la librería del sistema unixODBC
+    st.error(f"No se pudo iniciar la app: falta una librería o componente del servidor.\n\nDetalle: {e}")
+    st.stop()
+
+problemas = revisar_entorno()
+if problemas:
+    st.error("La app no está bien configurada:\n\n" + "\n".join(f"- {p}" for p in problemas))
+    st.stop()
 
 paginas = [
     st.Page("paginas/0_Resumen.py", title="Resumen", icon="📊", default=True),
