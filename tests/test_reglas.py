@@ -12,7 +12,8 @@ from datetime import date  # noqa: E402
 
 from reglas import (  # noqa: E402
     a_numero, atributos_fecha, bloque, calcular_arr_del15, calcular_causa_cancelacion, calcular_causa_principal,
-    calcular_estado, calcular_horario, calcular_rango, franja, temporada, tipo_distancia,
+    calcular_estado, calcular_horario, calcular_rango, etiqueta_franja, franja, rango_adelanto, temporada,
+    tipo_distancia,
 )
 
 NAN = float("nan")
@@ -137,6 +138,28 @@ def test_tipo_distancia(millas, tipo):
 ])
 def test_franja(hora, nombre):
     assert franja(hora) == nombre
+
+
+@pytest.mark.parametrize("nombre, etiqueta", [
+    ("Madrugada", "Madrugada (00:00–05:59)"), ("Mañana", "Mañana (06:00–11:59)"),
+    ("Tarde", "Tarde (12:00–17:59)"), ("Noche", "Noche (18:00–23:59)"),
+])
+def test_etiqueta_franja(nombre, etiqueta):
+    assert etiqueta_franja(nombre) == etiqueta
+
+
+def test_franja_fuera_de_rango_falla():
+    with pytest.raises(ValueError):
+        franja(24)
+
+
+@pytest.mark.parametrize("demora, rango", [
+    (0, None), (10, None), (None, None), (-1, "1–5 min antes"), (-5, "1–5 min antes"),
+    (-6, "6–15 min antes"), (-15, "6–15 min antes"), (-16, "16–30 min antes"), (-30, "16–30 min antes"),
+    (-31, "Más de 30 min antes"), (-90, "Más de 30 min antes"), ("-20.00", "16–30 min antes"),
+])
+def test_rango_adelanto(demora, rango):
+    assert rango_adelanto(demora) == rango
 
 
 @pytest.mark.parametrize("hora, texto", [(0, "0000-0059"), (6, "0600-0659"), (23, "2300-2359")])

@@ -41,7 +41,9 @@ COLORES_CAUSA = {
     "Clima": "#6250d6",
     "Seguridad": "#e87ba4",
 }
-FRANJAS = ["Madrugada", "Mañana", "Tarde", "Noche"]
+FRANJAS = list(reglas.FRANJAS_HORAS)  # nombres guardados en DimHorario.franja
+ETIQUETA_FRANJA = {f: reglas.etiqueta_franja(f) for f in FRANJAS}  # "Mañana (06:00–11:59)"
+ETIQUETAS_FRANJA = list(ETIQUETA_FRANJA.values())
 TIPOS_DISTANCIA = ["Corta", "Media", "Larga"]
 
 # Tipo de día: categorías excluyentes (un feriado en sábado o domingo cuenta como Feriado)
@@ -69,6 +71,21 @@ MINUTOS_POR_CAUSA = """
     JOIN DimCausaDemora c ON c.codigo = m.codigo
 """
 
+# % de vuelos programados en cada estado (definición del DOT: sobre todos los vuelos programados).
+# Los cuatro suman 100 %: A tiempo + Demorado + Cancelado + Desviado.
+PCT_PUNTUALIDAD = "SUM(f.es_puntual) * 100.0 / NULLIF(COUNT(*), 0)"
+PCT_DEMORADOS = f"SUM(CASE WHEN f.sk_estado = {reglas.DEMORADO} THEN 1 ELSE 0 END) * 100.0 / NULLIF(COUNT(*), 0)"
+PCT_CANCELACION = "SUM(f.es_cancelado) * 100.0 / NULLIF(COUNT(*), 0)"
+PCT_DESVIADOS = "SUM(f.es_desviado) * 100.0 / NULLIF(COUNT(*), 0)"
+
+# Poblaciones para la distribución de la demora de llegada
+SOLO_DEMORADOS = f"f.sk_estado = {reglas.DEMORADO}"
+SOLO_OPERADOS = f"f.sk_estado IN ({reglas.A_TIEMPO}, {reglas.DEMORADO})"  # llegaron a destino (no cancelados ni desviados)
+NOMBRE_POBLACION = {SOLO_DEMORADOS: "Vuelos demorados (≥ 15 min)",
+                    SOLO_OPERADOS: "Todos los vuelos que llegaron"}
+
+AYUDA_PP = ("p.p. = puntos porcentuales: la resta de dos porcentajes. Ej.: pasar de 60 % a 70 % "
+            "es +10 p.p. (y no +10 %, que sería 66 %).")
 
 
 def sql_temporada(columna_mes="d.mes"):
@@ -78,6 +95,32 @@ def sql_temporada(columna_mes="d.mes"):
         meses.setdefault(nombre, []).append(str(mes))
     casos = " ".join(f"WHEN {columna_mes} IN ({', '.join(m)}) THEN N'{nombre}'" for nombre, m in meses.items())
     return f"CASE {casos} ELSE N'{reglas.TEMPORADA_RESTO}' END"
+
+
+def sql_rango_adelanto(columna="f.demora_llegada_min"):
+    """Expresión CASE de SQL con el rango de adelanto, armada desde src/reglas.py (solo para demoras < 0)."""
+    casos = []
+    for nombre, desde, hasta in reglas.RANGOS_ADELANTO:
+        condicion = f"-{columna} >= {desde}" + (f" AND -{columna} <= {hasta}" if hasta is not None else "")
+        casos.append(f"WHEN {condicion} THEN N'{nombre}'")
+    return f"CASE {' '.join(casos)} ELSE N'{reglas.RANGOS_ADELANTO[0][0]}' END"
+
+
+def distribucion(where, params, condicion, grupo=None, valor="f.demora_llegada_min"):
+    """Vuelos, promedio, P25, mediana, P75, P90 y máximo de `valor` (PERCENTILE_CONT en SQL), opcionalmente por grupo."""
+    particion = f"PARTITION BY {grupo}" if grupo else ""
+    columna_grupo = f"{grupo} AS Grupo," if grupo else ""
+    percentiles = ",\n".join(
+        f"PERCENTILE_CONT({p}) WITHIN GROUP (ORDER BY {valor}) OVER ({particion}) AS [{nombre}]"
+        for p, nombre in [(0.25, "P25"), (0.5, "Mediana"), (0.75, "P75"), (0.9, "P90")])
+    return consultar(f"""
+        SELECT DISTINCT {columna_grupo}
+               COUNT(*) OVER ({particion}) AS Vuelos,
+               AVG({valor} * 1.0) OVER ({particion}) AS Promedio,
+               {percentiles},
+               MAX({valor}) OVER ({particion}) AS [Máximo]
+        {FROM_VUELOS} {where} AND {condicion}
+    """, params)
 
 
 _bloqueo = threading.Lock()  # conexiones compartidas: una consulta a la vez
@@ -197,6 +240,12 @@ def formato(numero, decimales=1):
     return texto.replace(",", "X").replace(".", ",").replace("X", ".")
 
 
+def formato_pp(diferencia):
+    """Diferencia de porcentajes en puntos porcentuales con signo, p. ej. "−29,5 p.p."."""
+    signo = "+" if diferencia > 0 else "−" if diferencia < 0 else ""
+    return f"{signo}{formato(abs(diferencia))} p.p."
+
+
 def mostrar_error_conexion(error):
     """Muestra el error de conexión con un botón para reintentar y detiene la página."""
     st.error(f"No se pudo consultar la base de datos VuelosDW.\n\nDetalle: {error}")
@@ -249,7 +298,9 @@ def filtros_sidebar():
                          format_func=lambda c: c if c == "Todos" else f"{c} — {destinos[c]}")
     st.sidebar.selectbox("Tipo de distancia", ["Todas", *TIPOS_DISTANCIA], key="filtro_distancia",
                          help="Corta: menos de 700 millas · Media: 700–1500 · Larga: más de 1500")
-    st.sidebar.selectbox("Franja horaria", ["Todas", *FRANJAS], key="filtro_franja")
+    st.sidebar.selectbox("Franja horaria", ["Todas", *FRANJAS], key="filtro_franja",
+                         format_func=lambda f: ETIQUETA_FRANJA.get(f, f),
+                         help="Según la hora programada de salida (hora local del origen).")
     st.sidebar.selectbox("Tipo de día", ["Todos", *CONDICION_TIPO_DIA], key="filtro_tipo_dia",
                          help="Un feriado que cae en fin de semana cuenta como Feriado.")
 

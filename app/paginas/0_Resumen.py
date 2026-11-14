@@ -11,33 +11,46 @@ import pyodbc
 import streamlit as st
 
 from db import (
-    COLORES_CAUSA, COLORES_ESTADO, FROM_VUELOS, MINUTOS_POR_CAUSA, consultar, formato, mostrar_error_conexion,
-    sql_temporada, where_filtros,
+    COLORES_CAUSA, COLORES_ESTADO, FROM_VUELOS, MINUTOS_POR_CAUSA, NOMBRE_POBLACION, PCT_CANCELACION,
+    PCT_DEMORADOS, PCT_DESVIADOS, PCT_PUNTUALIDAD, SOLO_DEMORADOS, SOLO_OPERADOS, consultar, distribucion, formato,
+    mostrar_error_conexion, sql_temporada, where_filtros,
 )
 
 import reglas  # noqa: E402  (db.py agrega src/ al path)
 
-DIAS = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
+DIAS = list(reglas.DIAS.values())
 ORDEN_ESTADOS = ["A tiempo", "Demorado", "Cancelado", "Desviado"]
 
 
 def kpis(where, params):
-    """KPI principales (puntualidad con la definición del DOT: sobre todos los vuelos programados)."""
+    """KPI principales: % de vuelos programados en cada estado (definición del DOT); los cuatro suman 100 %."""
     return consultar(f"""
         SELECT COUNT(*) AS vuelos,
-               SUM(f.es_puntual) * 100.0 / NULLIF(COUNT(*), 0)   AS pct_puntualidad,
-               SUM(f.es_cancelado) * 100.0 / NULLIF(COUNT(*), 0) AS pct_cancelacion,
-               AVG(CASE WHEN f.sk_estado = 2 THEN f.demora_llegada_min * 1.0 END) AS demora_promedio
+               {PCT_PUNTUALIDAD} AS pct_puntualidad,
+               {PCT_DEMORADOS}   AS pct_demorados,
+               {PCT_CANCELACION} AS pct_cancelacion,
+               {PCT_DESVIADOS}   AS pct_desviados
         {FROM_VUELOS} {where}
     """, params).iloc[0]
 
 
+def distribucion_demora(where, params):
+    """Distribución de la demora de llegada: vuelos demorados y todos los que llegaron (una fila por población)."""
+    filas = []
+    for condicion, nombre in NOMBRE_POBLACION.items():
+        df = distribucion(where, params, condicion)
+        df.insert(0, "Población", nombre)
+        filas.append(df)
+    return pd.concat(filas, ignore_index=True)
+
+
 def kpis_por_mes(where, params):
-    """% puntualidad y % cancelación por mes."""
+    """% puntualidad, % demorados y % cancelación por mes."""
     df = consultar(f"""
         SELECT d.anio, d.mes,
-               SUM(f.es_puntual) * 100.0 / COUNT(*)   AS [% Puntualidad],
-               SUM(f.es_cancelado) * 100.0 / COUNT(*) AS [% Cancelación]
+               {PCT_PUNTUALIDAD} AS [% Puntualidad],
+               {PCT_DEMORADOS}   AS [% Demorados],
+               {PCT_CANCELACION} AS [% Cancelación]
         {FROM_VUELOS} {where}
         GROUP BY d.anio, d.mes ORDER BY d.anio, d.mes
     """, params)
@@ -70,14 +83,20 @@ def vuelos_por_estado(where, params):
 
 
 def kpis_por_temporada(where, params):
-    """% puntualidad y % cancelación por temporada (invierno, verano, resto del año)."""
+    """% puntualidad, % demorados y % cancelación por temporada, con la mediana y el P90 de la demora de los demorados."""
     df = consultar(f"""
         SELECT {sql_temporada()} AS Temporada, COUNT(*) AS Vuelos,
-               SUM(f.es_puntual) * 100.0 / COUNT(*)   AS [% Puntualidad],
-               SUM(f.es_cancelado) * 100.0 / COUNT(*) AS [% Cancelación]
+               {PCT_PUNTUALIDAD} AS [% Puntualidad],
+               {PCT_DEMORADOS}   AS [% Demorados],
+               {PCT_CANCELACION} AS [% Cancelación]
         {FROM_VUELOS} {where}
         GROUP BY {sql_temporada()}
     """, params)
+    dist = distribucion(where, params, SOLO_DEMORADOS, grupo=sql_temporada())
+    dist = dist.rename(columns={"Grupo": "Temporada", "Vuelos": "Vuelos demorados", "Promedio": "Promedio (min)",
+                                "Mediana": "Mediana (min)", "P90": "P90 (min)"})
+    df = df.merge(dist[["Temporada", "Vuelos demorados", "Mediana (min)", "P90 (min)", "Promedio (min)"]],
+                  on="Temporada", how="left")
     df["Temporada"] = pd.Categorical(df["Temporada"], categories=reglas.TEMPORADAS, ordered=True)
     return df.sort_values("Temporada")
 
@@ -121,21 +140,50 @@ try:
     df_estado = vuelos_por_estado(where, params)
     df_temp = kpis_por_temporada(where, params)
     df_temp_causa = causas_por_temporada(where, params)
+    df_dist = distribucion_demora(where, params)
 except pyodbc.Error as e:
     mostrar_error_conexion(e)
 
-c1, c2, c3, c4 = st.columns(4)
+c1, c2, c3, c4, c5 = st.columns(5)
 c1.metric("Vuelos programados", formato(k["vuelos"], 0))
-c2.metric("% Puntualidad", f"{formato(k['pct_puntualidad'])} %")
-c3.metric("% Cancelación", f"{formato(k['pct_cancelacion'], 2)} %")
-c4.metric("Demora promedio de demorados",
-          f"{formato(k['demora_promedio'])} min" if pd.notna(k["demora_promedio"]) else "—")
+c2.metric("% Puntualidad", f"{formato(k['pct_puntualidad'])} %",
+          help="Estado «A tiempo»: llegó con menos de 15 min de demora. Sobre todos los vuelos programados.")
+c3.metric("% Demorados", f"{formato(k['pct_demorados'])} %",
+          help="Estado «Demorado»: llegó con 15 min o más de demora. Sobre todos los vuelos programados.")
+c4.metric("% Cancelación", f"{formato(k['pct_cancelacion'], 2)} %")
+c5.metric("% Desviados", f"{formato(k['pct_desviados'], 2)} %")
+partes = [("A tiempo", k["pct_puntualidad"], 1), ("Demorado", k["pct_demorados"], 1),
+          ("Cancelado", k["pct_cancelacion"], 2), ("Desviado", k["pct_desviados"], 2)]
+suma = sum(p for _, p, _ in partes)
+st.caption(" + ".join(f"{n} {formato(p, d)} %" for n, p, d in partes) + f" = **{formato(suma)} %** "
+           "de los vuelos programados (cada vuelo tiene un solo estado; los valores mostrados están redondeados).")
+
+# --- Distribución de la demora de llegada (compacta; el detalle está en la página Horario) ---
+st.markdown("**Demora de llegada (minutos)** — el promedio se muestra junto a la mediana y los percentiles, "
+            "porque unas pocas demoras muy largas lo inflan.")
+demorados = df_dist.iloc[0]
+if demorados["Vuelos"] and pd.notna(demorados["Mediana"]):
+    d1, d2, d3, d4 = st.columns(4)
+    d1.metric("Mediana de los demorados", f"{formato(demorados['Mediana'], 0)} min",
+              help="La mitad de los vuelos demorados llegó con menos de esta demora.")
+    d2.metric("P90 de los demorados", f"{formato(demorados['P90'], 0)} min",
+              help="El 10 % de los vuelos demorados llegó con más de esta demora.")
+    d3.metric("Promedio de los demorados", f"{formato(demorados['Promedio'])} min")
+    d4.metric("Máximo", f"{formato(demorados['Máximo'], 0)} min")
+st.dataframe(df_dist, hide_index=True, width="stretch",
+             column_config={c: st.column_config.NumberColumn(c, format="%.0f min")
+                            for c in ["P25", "Mediana", "P75", "P90", "Máximo"]}
+             | {"Promedio": st.column_config.NumberColumn("Promedio", format="%.1f min"),
+                "Vuelos": st.column_config.NumberColumn("Vuelos", format="localized")})
+st.caption("Valores negativos = llegó antes de hora. «Todos los vuelos que llegaron» excluye cancelados y "
+           "desviados, que no tienen demora de llegada. Percentiles con PERCENTILE_CONT en SQL Server.")
 
 col_izq, col_der = st.columns(2)
 with col_izq:
-    fig = px.line(df_mes, x="Mes", y=["% Puntualidad", "% Cancelación"], markers=True,
-                  title="Puntualidad y cancelación por mes",
+    fig = px.line(df_mes, x="Mes", y=["% Puntualidad", "% Demorados", "% Cancelación"], markers=True,
+                  title="Puntualidad, demorados y cancelación por mes",
                   color_discrete_map={"% Puntualidad": COLORES_ESTADO["A tiempo"],
+                                      "% Demorados": COLORES_ESTADO["Demorado"],
                                       "% Cancelación": COLORES_ESTADO["Cancelado"]})
     fig.update_layout(yaxis_title="%", legend_title_text="", xaxis_type="category")
     st.plotly_chart(fig, width="stretch")
@@ -153,15 +201,17 @@ st.plotly_chart(fig, width="stretch")
 # --- Temporadas: invierno vs. verano ---
 st.subheader("Invierno vs. verano")
 st.caption("Invierno = diciembre a febrero · Verano = junio a agosto · Resto del año = los demás meses.")
-df_temp_largo = df_temp.melt(id_vars=["Temporada", "Vuelos"], value_vars=["% Puntualidad", "% Cancelación"],
+df_temp_largo = df_temp.melt(id_vars=["Temporada", "Vuelos"],
+                             value_vars=["% Puntualidad", "% Demorados", "% Cancelación"],
                              var_name="Indicador", value_name="%")
 orden_temp = {"Temporada": reglas.TEMPORADAS, "Causa": list(COLORES_CAUSA)}
 col_izq, col_der = st.columns(2)
 with col_izq:
     fig = px.bar(df_temp_largo, x="Temporada", y="%", color="Indicador", barmode="group", text_auto=".1f",
-                 title="Puntualidad y cancelación por temporada", category_orders=orden_temp,
+                 title="Puntualidad, demorados y cancelación por temporada", category_orders=orden_temp,
                  hover_data={"Vuelos": ":,.0f"},
                  color_discrete_map={"% Puntualidad": COLORES_ESTADO["A tiempo"],
+                                     "% Demorados": COLORES_ESTADO["Demorado"],
                                      "% Cancelación": COLORES_ESTADO["Cancelado"]})
     fig.update_layout(legend_title_text="", yaxis_title="%")
     st.plotly_chart(fig, width="stretch")
@@ -176,7 +226,21 @@ with col_der:
         fig.for_each_annotation(lambda a: a.update(text=a.text.split("=")[-1]))
         fig.update_layout(legend_title_text="", xaxis_range=[0, 100], xaxis2_range=[0, 100])
         st.plotly_chart(fig, width="stretch")
-        st.caption("BTS no reporta «Avión anterior retrasado» como causa de cancelación.")
+        st.caption("Minutos de demora: solo vuelos demorados. Cancelaciones: solo su propia causa "
+                   "(DimCausaCancelacion); BTS no reporta «Avión anterior retrasado» como causa de cancelación.")
+
+df_temp_dist = df_temp.melt(id_vars=["Temporada", "Vuelos demorados"], value_vars=["Mediana (min)", "P90 (min)"],
+                            var_name="Medida", value_name="Minutos")
+col_izq, _ = st.columns(2)
+with col_izq:
+    fig = px.bar(df_temp_dist, x="Temporada", y="Minutos", color="Medida", barmode="group", text_auto=".0f",
+                 title="Demora de llegada de los vuelos demorados: mediana y P90", category_orders=orden_temp,
+                 hover_data={"Vuelos demorados": ":,.0f"},
+                 color_discrete_map={"Mediana (min)": COLORES_ESTADO["Demorado"], "P90 (min)": "#B07A00"})
+    fig.update_layout(legend_title_text="", yaxis_title="Minutos de demora")
+    st.plotly_chart(fig, width="stretch")
+    st.caption("Mediana: la mitad de los vuelos demorados llegó con menos demora. "
+               "P90: el 10 % llegó con más demora que este valor.")
 
 with st.expander("Ver datos por temporada en tabla"):
     st.dataframe(df_temp, hide_index=True, width="stretch")

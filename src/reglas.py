@@ -128,15 +128,39 @@ def tipo_distancia(millas):
     return "Larga"
 
 
+# Franjas del día: nombre → (primera hora, última hora). El orden es el del día.
+FRANJAS_HORAS = {"Madrugada": (0, 5), "Mañana": (6, 11), "Tarde": (12, 17), "Noche": (18, 23)}
+
+
 def franja(hora):
     """Franja del día para una hora 0–23."""
-    if hora <= 5:
-        return "Madrugada"
-    if hora <= 11:
-        return "Mañana"
-    if hora <= 17:
-        return "Tarde"
-    return "Noche"
+    for nombre, (desde, hasta) in FRANJAS_HORAS.items():
+        if desde <= hora <= hasta:
+            return nombre
+    raise ValueError(f"Hora fuera de rango: {hora}")
+
+
+def etiqueta_franja(nombre):
+    """Franja con sus horas para mostrar en pantalla, p. ej. "Mañana (06:00–11:59)"."""
+    desde, hasta = FRANJAS_HORAS[nombre]
+    return f"{nombre} ({desde:02d}:00–{hasta:02d}:59)"
+
+
+# Llegadas adelantadas: rangos de minutos antes de hora (desde, hasta; None = sin límite)
+RANGOS_ADELANTO = [("1–5 min antes", 1, 5), ("6–15 min antes", 6, 15),
+                   ("16–30 min antes", 16, 30), ("Más de 30 min antes", 31, None)]
+
+
+def rango_adelanto(demora_llegada):
+    """Rango de adelanto de un vuelo que llegó antes de hora; None si no llegó antes."""
+    demora = a_numero(demora_llegada)
+    if demora is None or demora >= 0:
+        return None
+    minutos_antes = -demora
+    for nombre, desde, hasta in RANGOS_ADELANTO:
+        if minutos_antes >= desde and (hasta is None or minutos_antes <= hasta):
+            return nombre
+    return RANGOS_ADELANTO[0][0]  # adelantos fraccionarios menores a 1 min
 
 
 # Temporadas para comparar invierno y verano (meses del hemisferio norte); el resto de meses va junto
