@@ -1,6 +1,7 @@
 # Data Mart de Puntualidad de JetBlue Airways
 
 Proyecto final — Business Intelligence · Universidad del Pacífico · 2026-2
+### Link de la presentación: https://docs.google.com/presentation/d/1-B1suP6Yh6Vo3mt4DpL6GEoHeI6YeNlR/edit?slide=id.p1#slide=id.p1
 
 | | |
 |---|---|
